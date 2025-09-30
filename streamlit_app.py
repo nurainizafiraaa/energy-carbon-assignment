@@ -44,14 +44,6 @@ Year = st.sidebar.multiselect(
    options=df["Year"].unique(),
 )
 
-# Energy range filter
-min_energy, max_energy = int(df["Total Energy Consumption (TWh)"].min()), int(df["Total Energy Consumption (TWh)"].max())
-energy_range = st.sidebar.slider(
-   "Total Energy Consumption (TWh)",
-   min_value=min_energy,
-   max_value=max_energy,
-   value=(min_energy, max_energy),
-)
 
 # --- FILTER DATA ---
 df_selection = df.copy()
