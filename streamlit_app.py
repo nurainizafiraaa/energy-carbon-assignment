@@ -81,11 +81,10 @@ with tab2:
     st.line_chart(chart_data.set_index("Year"))
 
 # --- TAB 3: CORRELATION ---
-# --- TAB 3: CORRELATION ---
 with tab3:
     st.subheader("🌍 Correlation: Energy vs Carbon Emissions per Country")
 
-    # Scatter pakai data tahunan (bukan agregasi total)
+    # Scatter pakai data tahunan (per country & year)
     scatter = alt.Chart(df_selection).mark_circle(size=80).encode(
         x=alt.X("Total Energy Consumption (TWh):Q", title="Total Energy Consumption (TWh)"),
         y=alt.Y("Carbon Emissions (Million Tons):Q", title="Carbon Emissions (Million Tons)"),
@@ -93,14 +92,8 @@ with tab3:
         tooltip=["Country", "Year", "Total Energy Consumption (TWh)", "Carbon Emissions (Million Tons)"]
     ).properties(width=800, height=500)
 
-    # Regression line per negara
-    trend = alt.Chart(df_selection).transform_regression(
-        "Total Energy Consumption (TWh)",
-        "Carbon Emissions (Million Tons)",
-        groupby=["Country"]     # <<< penting biar tiap negara punya garis tren sendiri
-    ).mark_line(size=2)
+    st.altair_chart(scatter, use_container_width=True)
 
-    st.altair_chart(scatter + trend, use_container_width=True)
 
 # --- TAB 4: RAW DATA ---
 with tab4:
