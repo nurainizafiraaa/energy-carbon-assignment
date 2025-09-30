@@ -84,15 +84,35 @@ with tab2:
 with tab3:
     st.subheader("🌍 Correlation: Energy vs Carbon Emissions per Country")
 
-    # Scatter pakai data tahunan (per country & year)
-    scatter = alt.Chart(df_selection).mark_circle(size=80).encode(
-        x=alt.X("Total Energy Consumption (TWh):Q", title="Total Energy Consumption (TWh)"),
-        y=alt.Y("Carbon Emissions (Million Tons):Q", title="Carbon Emissions (Million Tons)"),
+    # Aggregate per country
+    agg_data = (
+        df_selection.groupby("Country")[["Total Energy Consumption (TWh)", "Carbon Emissions (Million Tons)"]]
+        .sum()
+        .reset_index()
+    )
+
+    # Axis scaling
+    x_scale = alt.Scale(type="log") if log_scale else alt.Scale(
+        domain=[
+            agg_data["Total Energy Consumption (TWh)"].min() * 0.9,
+            agg_data["Total Energy Consumption (TWh)"].max() * 1.1,
+        ]
+    )
+    y_scale = alt.Scale(type="log") if log_scale else alt.Scale(
+        domain=[
+            agg_data["Carbon Emissions (Million Tons)"].min() * 0.9,
+            agg_data["Carbon Emissions (Million Tons)"].max() * 1.1,
+        ]
+    )
+
+    # Scatter plot
+    scatter_total = alt.Chart(agg_data).mark_circle(size=200).encode(
+        x=alt.X("Total Energy Consumption (TWh):Q", title="Total Energy Consumption (TWh)", scale=x_scale),
+        y=alt.Y("Carbon Emissions (Million Tons):Q", title="Carbon Emissions (Million Tons)", scale=y_scale),
         color="Country:N",
-        tooltip=["Country", "Year", "Total Energy Consumption (TWh)", "Carbon Emissions (Million Tons)"]
+        tooltip=["Country", "Total Energy Consumption (TWh)", "Carbon Emissions (Million Tons)"]
     ).properties(width=800, height=500)
 
-    st.altair_chart(scatter, use_container_width=True)
 
 
 # --- TAB 4: RAW DATA ---
