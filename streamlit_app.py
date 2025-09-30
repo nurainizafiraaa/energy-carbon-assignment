@@ -44,15 +44,6 @@ Year = st.sidebar.multiselect(
    options=df["Year"].unique(),
 )
 
-# Energy range filter
-min_energy, max_energy = int(df["Total Energy Consumption (TWh)"].min()), int(df["Total Energy Consumption (TWh)"].max())
-energy_range = st.sidebar.slider(
-   "Total Energy Consumption (TWh)",
-   min_value=min_energy,
-   max_value=max_energy,
-   value=(min_energy, max_energy),
-)
-
 # --- FILTER DATA ---
 df_selection = df.copy()
 
@@ -60,11 +51,6 @@ if Country:
    df_selection = df_selection[df_selection["Country"].isin(Country)]
 if Year:
    df_selection = df_selection[df_selection["Year"].isin(Year)]
-
-df_selection = df_selection[
-   (df_selection["Total Energy Consumption (TWh)"] >= energy_range[0]) & 
-   (df_selection["Total Energy Consumption (TWh)"] <= energy_range[1])
-]
 
 if df_selection.empty:
    st.warning("⚠️ No data available for the selected filters. Please adjust your selection.")
@@ -106,7 +92,6 @@ with tab3:
     )
 
     # Sidebar options
-    show_trend = st.sidebar.checkbox("Show regression line", value=True)
     log_scale = st.sidebar.checkbox("Use log scale", value=False)
 
     # Axis scaling
@@ -131,15 +116,6 @@ with tab3:
         tooltip=["Country", "Total Energy Consumption (TWh)", "Carbon Emissions (Million Tons)"]
     ).properties(width=800, height=500)
 
-    # Regression line
-    if show_trend:
-        trend = alt.Chart(agg_data).transform_regression(
-            "Total Energy Consumption (TWh)",
-            "Carbon Emissions (Million Tons)"
-        ).mark_line(color="red")
-        st.altair_chart(scatter_total + trend, use_container_width=True)
-    else:
-        st.altair_chart(scatter_total, use_container_width=True)
 
 # --- TAB 4: RAW DATA ---
 with tab4:
