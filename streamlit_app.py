@@ -1,151 +1,152 @@
 import streamlit as st
 import pandas as pd
-import math
-from pathlib import Path
+import altair as alt
 
-# Set the title and favicon that appear in the Browser's tab bar.
+# --- PAGE CONFIGURATION ---
 st.set_page_config(
-    page_title='GDP dashboard',
-    page_icon=':earth_americas:', # This is an emoji shortcode. Could be a URL too.
+   page_title="Energy and Carbon Emission Review",
+   page_icon="⚡",
+   layout="wide",
+   initial_sidebar_state="expanded",
 )
 
-# -----------------------------------------------------------------------------
-# Declare some useful functions.
-
+# --- DATA LOADING ---
 @st.cache_data
-def get_gdp_data():
-    """Grab GDP data from a CSV file.
+def load_data():
+    file_id = "16A_4BmOEsbhhv9vUBQWemk8s3M4WDB5D"
+    url = f"https://drive.google.com/uc?id={file_id}"
+    df = pd.read_csv(url)
+    df.dropna(inplace=True)
+    return df
 
-    This uses caching to avoid having to read the file every time. If we were
-    reading from an HTTP endpoint instead of a file, it's a good idea to set
-    a maximum age to the cache with the TTL argument: @st.cache_data(ttl='1d')
-    """
+df = load_data()
 
-    # Instead of a CSV on disk, you could read from an HTTP endpoint here too.
-    DATA_FILENAME = Path(__file__).parent/'data/gdp_data.csv'
-    raw_gdp_df = pd.read_csv(DATA_FILENAME)
+# --- APP TITLE AND DESCRIPTION ---
+st.title("⚡ Energy and Carbon Emission Review")
+st.markdown("""
+This dashboard provides an **exploratory data analysis (EDA)** 
+on global **energy consumption** and **carbon emissions** data.  
+Use the filters in the sidebar to explore trends by country and year.
+""")
 
-    MIN_YEAR = 1960
-    MAX_YEAR = 2022
+# --- SIDEBAR FILTERS ---
+st.sidebar.header("🔎 Filters")
 
-    # The data above has columns like:
-    # - Country Name
-    # - Country Code
-    # - [Stuff I don't care about]
-    # - GDP for 1960
-    # - GDP for 1961
-    # - GDP for 1962
-    # - ...
-    # - GDP for 2022
-    #
-    # ...but I want this instead:
-    # - Country Name
-    # - Country Code
-    # - Year
-    # - GDP
-    #
-    # So let's pivot all those year-columns into two: Year and GDP
-    gdp_df = raw_gdp_df.melt(
-        ['Country Code'],
-        [str(x) for x in range(MIN_YEAR, MAX_YEAR + 1)],
-        'Year',
-        'GDP',
-    )
+# Country filter
+Country = st.sidebar.multiselect(
+   "Select Country",
+   options=df["Country"].unique(),
+)
 
-    # Convert years from string to integers
-    gdp_df['Year'] = pd.to_numeric(gdp_df['Year'])
+# Year filter
+Year = st.sidebar.multiselect(
+   "Select Year",
+   options=df["Year"].unique(),
+)
 
-    return gdp_df
+# Energy range filter
+min_energy, max_energy = int(df["Total Energy Consumption (TWh)"].min()), int(df["Total Energy Consumption (TWh)"].max())
+energy_range = st.sidebar.slider(
+   "Total Energy Consumption (TWh)",
+   min_value=min_energy,
+   max_value=max_energy,
+   value=(min_energy, max_energy),
+)
 
-gdp_df = get_gdp_data()
+# --- FILTER DATA ---
+df_selection = df.copy()
 
-# -----------------------------------------------------------------------------
-# Draw the actual page
+if Country:
+   df_selection = df_selection[df_selection["Country"].isin(Country)]
+if Year:
+   df_selection = df_selection[df_selection["Year"].isin(Year)]
 
-# Set the title that appears at the top of the page.
-'''
-# :earth_americas: GDP dashboard
-
-Browse GDP data from the [World Bank Open Data](https://data.worldbank.org/) website. As you'll
-notice, the data only goes to 2022 right now, and datapoints for certain years are often missing.
-But it's otherwise a great (and did I mention _free_?) source of data.
-'''
-
-# Add some spacing
-''
-''
-
-min_value = gdp_df['Year'].min()
-max_value = gdp_df['Year'].max()
-
-from_year, to_year = st.slider(
-    'Which years are you interested in?',
-    min_value=min_value,
-    max_value=max_value,
-    value=[min_value, max_value])
-
-countries = gdp_df['Country Code'].unique()
-
-if not len(countries):
-    st.warning("Select at least one country")
-
-selected_countries = st.multiselect(
-    'Which countries would you like to view?',
-    countries,
-    ['DEU', 'FRA', 'GBR', 'BRA', 'MEX', 'JPN'])
-
-''
-''
-''
-
-# Filter the data
-filtered_gdp_df = gdp_df[
-    (gdp_df['Country Code'].isin(selected_countries))
-    & (gdp_df['Year'] <= to_year)
-    & (from_year <= gdp_df['Year'])
+df_selection = df_selection[
+   (df_selection["Total Energy Consumption (TWh)"] >= energy_range[0]) & 
+   (df_selection["Total Energy Consumption (TWh)"] <= energy_range[1])
 ]
 
-st.header('GDP over time', divider='gray')
+if df_selection.empty:
+   st.warning("⚠️ No data available for the selected filters. Please adjust your selection.")
+   st.stop()
 
-''
+# --- TABS ---
+tab1, tab2, tab3, tab4 = st.tabs(["📊 Metrics", "📈 Trends", "🌍 Correlation", "📄 Raw Data"])
 
-st.line_chart(
-    filtered_gdp_df,
-    x='Year',
-    y='GDP',
-    color='Country Code',
-)
+# --- TAB 1: METRICS ---
+with tab1:
+    st.subheader("📊 Key Metrics")
+    col1, col2 = st.columns(2)
+    with col1:
+        total_energy = df_selection["Total Energy Consumption (TWh)"].sum()
+        st.metric("Total Energy Consumption (TWh)", f"{total_energy:,.0f}")
+    with col2:
+        avg_emission = df_selection["Carbon Emissions (Million Tons)"].mean()
+        st.metric("Average Carbon Emissions (Million Tons)", f"{avg_emission:,.2f}")
 
-''
-''
+# --- TAB 2: TRENDS ---
+with tab2:
+    st.subheader("📈 Fossil vs Renewable Energy Over Time")
+    chart_data = (
+        df_selection.groupby("Year")[["Fossil Fuel Dependency (%)", "Renewable Energy Share (%)"]]
+        .mean()
+        .reset_index()
+    )
+    st.line_chart(chart_data.set_index("Year"))
 
+# --- TAB 3: CORRELATION ---
+with tab3:
+    st.subheader("🌍 Correlation: Energy vs Carbon Emissions per Country")
 
-first_year = gdp_df[gdp_df['Year'] == from_year]
-last_year = gdp_df[gdp_df['Year'] == to_year]
+    # Aggregate per country
+    agg_data = (
+        df_selection.groupby("Country")[["Total Energy Consumption (TWh)", "Carbon Emissions (Million Tons)"]]
+        .sum()
+        .reset_index()
+    )
 
-st.header(f'GDP in {to_year}', divider='gray')
+    # Sidebar options
+    show_trend = st.sidebar.checkbox("Show regression line", value=True)
+    log_scale = st.sidebar.checkbox("Use log scale", value=False)
 
-''
+    # Axis scaling
+    x_scale = alt.Scale(type="log") if log_scale else alt.Scale(
+        domain=[
+            agg_data["Total Energy Consumption (TWh)"].min() * 0.9,
+            agg_data["Total Energy Consumption (TWh)"].max() * 1.1,
+        ]
+    )
+    y_scale = alt.Scale(type="log") if log_scale else alt.Scale(
+        domain=[
+            agg_data["Carbon Emissions (Million Tons)"].min() * 0.9,
+            agg_data["Carbon Emissions (Million Tons)"].max() * 1.1,
+        ]
+    )
 
-cols = st.columns(4)
+    # Scatter plot
+    scatter_total = alt.Chart(agg_data).mark_circle(size=200).encode(
+        x=alt.X("Total Energy Consumption (TWh):Q", title="Total Energy Consumption (TWh)", scale=x_scale),
+        y=alt.Y("Carbon Emissions (Million Tons):Q", title="Carbon Emissions (Million Tons)", scale=y_scale),
+        color="Country:N",
+        tooltip=["Country", "Total Energy Consumption (TWh)", "Carbon Emissions (Million Tons)"]
+    ).properties(width=800, height=500)
 
-for i, country in enumerate(selected_countries):
-    col = cols[i % len(cols)]
+    # Regression line
+    if show_trend:
+        trend = alt.Chart(agg_data).transform_regression(
+            "Total Energy Consumption (TWh)",
+            "Carbon Emissions (Million Tons)"
+        ).mark_line(color="red")
+        st.altair_chart(scatter_total + trend, use_container_width=True)
+    else:
+        st.altair_chart(scatter_total, use_container_width=True)
 
-    with col:
-        first_gdp = first_year[first_year['Country Code'] == country]['GDP'].iat[0] / 1000000000
-        last_gdp = last_year[last_year['Country Code'] == country]['GDP'].iat[0] / 1000000000
+# --- TAB 4: RAW DATA ---
+with tab4:
+    st.subheader("📄 Raw Data")
+    st.dataframe(df_selection)
+    st.markdown(f"**Data Dimensions:** {df_selection.shape[0]} rows × {df_selection.shape[1]} columns")
 
-        if math.isnan(first_gdp):
-            growth = 'n/a'
-            delta_color = 'off'
-        else:
-            growth = f'{last_gdp / first_gdp:,.2f}x'
-            delta_color = 'normal'
-
-        st.metric(
-            label=f'{country} GDP',
-            value=f'{last_gdp:,.0f}B',
-            delta=growth,
-            delta_color=delta_color
-        )
+# --- FOOTER ---
+st.markdown("---")
+st.caption("📊 Data Source: [Google Drive Dataset](https://drive.google.com/uc?id=16A_4BmOEsbhhv9vUBQWemk8s3M4WDB5D)")
