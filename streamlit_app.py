@@ -44,7 +44,6 @@ Year = st.sidebar.multiselect(
    options=df["Year"].unique(),
 )
 
-
 # --- FILTER DATA ---
 df_selection = df.copy()
 
@@ -52,11 +51,6 @@ if Country:
    df_selection = df_selection[df_selection["Country"].isin(Country)]
 if Year:
    df_selection = df_selection[df_selection["Year"].isin(Year)]
-
-df_selection = df_selection[
-   (df_selection["Total Energy Consumption (TWh)"] >= energy_range[0]) & 
-   (df_selection["Total Energy Consumption (TWh)"] <= energy_range[1])
-]
 
 if df_selection.empty:
    st.warning("⚠️ No data available for the selected filters. Please adjust your selection.")
@@ -87,51 +81,26 @@ with tab2:
     st.line_chart(chart_data.set_index("Year"))
 
 # --- TAB 3: CORRELATION ---
+# --- TAB 3: CORRELATION ---
 with tab3:
     st.subheader("🌍 Correlation: Energy vs Carbon Emissions per Country")
 
-    # Aggregate per country
-    agg_data = (
-        df_selection.groupby("Country")[["Total Energy Consumption (TWh)", "Carbon Emissions (Million Tons)"]]
-        .sum()
-        .reset_index()
-    )
-
-    # Sidebar options
-    show_trend = st.sidebar.checkbox("Show regression line", value=True)
-    log_scale = st.sidebar.checkbox("Use log scale", value=False)
-
-    # Axis scaling
-    x_scale = alt.Scale(type="log") if log_scale else alt.Scale(
-        domain=[
-            agg_data["Total Energy Consumption (TWh)"].min() * 0.9,
-            agg_data["Total Energy Consumption (TWh)"].max() * 1.1,
-        ]
-    )
-    y_scale = alt.Scale(type="log") if log_scale else alt.Scale(
-        domain=[
-            agg_data["Carbon Emissions (Million Tons)"].min() * 0.9,
-            agg_data["Carbon Emissions (Million Tons)"].max() * 1.1,
-        ]
-    )
-
-    # Scatter plot
-    scatter_total = alt.Chart(agg_data).mark_circle(size=200).encode(
-        x=alt.X("Total Energy Consumption (TWh):Q", title="Total Energy Consumption (TWh)", scale=x_scale),
-        y=alt.Y("Carbon Emissions (Million Tons):Q", title="Carbon Emissions (Million Tons)", scale=y_scale),
+    # Scatter pakai data tahunan (bukan agregasi total)
+    scatter = alt.Chart(df_selection).mark_circle(size=80).encode(
+        x=alt.X("Total Energy Consumption (TWh):Q", title="Total Energy Consumption (TWh)"),
+        y=alt.Y("Carbon Emissions (Million Tons):Q", title="Carbon Emissions (Million Tons)"),
         color="Country:N",
-        tooltip=["Country", "Total Energy Consumption (TWh)", "Carbon Emissions (Million Tons)"]
+        tooltip=["Country", "Year", "Total Energy Consumption (TWh)", "Carbon Emissions (Million Tons)"]
     ).properties(width=800, height=500)
 
-    # Regression line
-    if show_trend:
-        trend = alt.Chart(agg_data).transform_regression(
-            "Total Energy Consumption (TWh)",
-            "Carbon Emissions (Million Tons)"
-        ).mark_line(color="red")
-        st.altair_chart(scatter_total + trend, use_container_width=True)
-    else:
-        st.altair_chart(scatter_total, use_container_width=True)
+    # Regression line per negara
+    trend = alt.Chart(df_selection).transform_regression(
+        "Total Energy Consumption (TWh)",
+        "Carbon Emissions (Million Tons)",
+        groupby=["Country"]     # <<< penting biar tiap negara punya garis tren sendiri
+    ).mark_line(size=2)
+
+    st.altair_chart(scatter + trend, use_container_width=True)
 
 # --- TAB 4: RAW DATA ---
 with tab4:
