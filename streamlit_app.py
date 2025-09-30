@@ -44,6 +44,15 @@ Year = st.sidebar.multiselect(
    options=df["Year"].unique(),
 )
 
+# Energy range filter
+min_energy, max_energy = int(df["Total Energy Consumption (TWh)"].min()), int(df["Total Energy Consumption (TWh)"].max())
+energy_range = st.sidebar.slider(
+   "Total Energy Consumption (TWh)",
+   min_value=min_energy,
+   max_value=max_energy,
+   value=(min_energy, max_energy),
+)
+
 # --- FILTER DATA ---
 df_selection = df.copy()
 
@@ -51,6 +60,11 @@ if Country:
    df_selection = df_selection[df_selection["Country"].isin(Country)]
 if Year:
    df_selection = df_selection[df_selection["Year"].isin(Year)]
+
+df_selection = df_selection[
+   (df_selection["Total Energy Consumption (TWh)"] >= energy_range[0]) & 
+   (df_selection["Total Energy Consumption (TWh)"] <= energy_range[1])
+]
 
 if df_selection.empty:
    st.warning("⚠️ No data available for the selected filters. Please adjust your selection.")
@@ -91,27 +105,29 @@ with tab3:
         .reset_index()
     )
 
-x_scale = alt.Scale(
-    domain=[
-        agg_data["Total Energy Consumption (TWh)"].min() * 0.9,
-        agg_data["Total Energy Consumption (TWh)"].max() * 1.1,
-    ]
-)
-y_scale = alt.Scale(
-    domain=[
-        agg_data["Carbon Emissions (Million Tons)"].min() * 0.9,
-        agg_data["Carbon Emissions (Million Tons)"].max() * 1.1,
-    ]
-)
+    # Scale domain auto-adjust ±10%
+    x_scale = alt.Scale(
+        domain=[
+            agg_data["Total Energy Consumption (TWh)"].min() * 0.9,
+            agg_data["Total Energy Consumption (TWh)"].max() * 1.1,
+        ]
+    )
+    y_scale = alt.Scale(
+        domain=[
+            agg_data["Carbon Emissions (Million Tons)"].min() * 0.9,
+            agg_data["Carbon Emissions (Million Tons)"].max() * 1.1,
+        ]
+    )
 
-scatter_total = alt.Chart(agg_data).mark_circle(size=200).encode(
-    x=alt.X("Total Energy Consumption (TWh):Q", title="Total Energy Consumption (TWh)", scale=x_scale),
-    y=alt.Y("Carbon Emissions (Million Tons):Q", title="Carbon Emissions (Million Tons)", scale=y_scale),
-    color="Country:N",
-    tooltip=["Country", "Total Energy Consumption (TWh)", "Carbon Emissions (Million Tons)"]
-).properties(width=800, height=500)
+    # Scatter plot total per country
+    scatter_total = alt.Chart(agg_data).mark_circle(size=200).encode(
+        x=alt.X("Total Energy Consumption (TWh):Q", title="Total Energy Consumption (TWh)", scale=x_scale),
+        y=alt.Y("Carbon Emissions (Million Tons):Q", title="Carbon Emissions (Million Tons)", scale=y_scale),
+        color="Country:N",
+        tooltip=["Country", "Total Energy Consumption (TWh)", "Carbon Emissions (Million Tons)"]
+    ).properties(width=800, height=500)
 
-
+    st.altair_chart(scatter_total, use_container_width=True)
 
 # --- TAB 4: RAW DATA ---
 with tab4:
