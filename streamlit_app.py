@@ -91,30 +91,15 @@ with tab3:
         .reset_index()
     )
 
-    # Sidebar options
-    log_scale = st.sidebar.checkbox("Use log scale", value=False)
-
-    # Axis scaling
-    x_scale = alt.Scale(type="log") if log_scale else alt.Scale(
-        domain=[
-            agg_data["Total Energy Consumption (TWh)"].min() * 0.9,
-            agg_data["Total Energy Consumption (TWh)"].max() * 1.1,
-        ]
-    )
-    y_scale = alt.Scale(type="log") if log_scale else alt.Scale(
-        domain=[
-            agg_data["Carbon Emissions (Million Tons)"].min() * 0.9,
-            agg_data["Carbon Emissions (Million Tons)"].max() * 1.1,
-        ]
-    )
-
-    # Scatter plot
+    # Scatter plot total per country
     scatter_total = alt.Chart(agg_data).mark_circle(size=200).encode(
-        x=alt.X("Total Energy Consumption (TWh):Q", title="Total Energy Consumption (TWh)", scale=x_scale),
-        y=alt.Y("Carbon Emissions (Million Tons):Q", title="Carbon Emissions (Million Tons)", scale=y_scale),
+        x=alt.X("Total Energy Consumption (TWh):Q", title="Total Energy Consumption (TWh)"),
+        y=alt.Y("Carbon Emissions (Million Tons):Q", title="Carbon Emissions (Million Tons)"),
         color="Country:N",
         tooltip=["Country", "Total Energy Consumption (TWh)", "Carbon Emissions (Million Tons)"]
     ).properties(width=800, height=500)
+
+    st.altair_chart(scatter_total, use_container_width=True)
 
 
 # --- TAB 4: RAW DATA ---
